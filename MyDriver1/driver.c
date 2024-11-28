@@ -33,26 +33,29 @@ NTSTATUS Function_IRP_DEVICE_CONTROL(PDEVICE_OBJECT pDeviceObject, PIRP Irp)
 {
 	UNREFERENCED_PARAMETER(pDeviceObject);
 	PIO_STACK_LOCATION pIoStackLocation;
-	PCHAR welcome = "Hello from kerneland.";
+	PCHAR message = "SECRET MESSAGE!!!";
 	PVOID pBuf = Irp->AssociatedIrp.SystemBuffer;
+	SIZE_T messageLen = strlen(message);
+	UCHAR xorKey = 0x5A;
 
 	pIoStackLocation = IoGetCurrentIrpStackLocation(Irp);
 	switch (pIoStackLocation->Parameters.DeviceIoControl.IoControlCode)
 	{
 	case IOCTL_HELLO:
-		DbgPrint("IOCTL HELLO.");
-		DbgPrint("Message received : %s", pBuf);
+		DbgPrint("IOCTL HELLO received");
+		DbgPrint("Received encoded message: %s", pBuf);
 
 		RtlZeroMemory(pBuf, pIoStackLocation->Parameters.DeviceIoControl.InputBufferLength);
-		RtlCopyMemory(pBuf, welcome, strlen(welcome));
+
+		for (SIZE_T i = 0; i < messageLen; i++) {
+			((PCHAR)pBuf)[i] = message[i] ^ xorKey;
+		}
 
 		break;
 	}
 
-	// Finish the I/O operation by simply completing the packet and returning
-	// the same status as in the packet itself.
 	Irp->IoStatus.Status = STATUS_SUCCESS;
-	Irp->IoStatus.Information = strlen(welcome);
+	Irp->IoStatus.Information = messageLen;
 	IoCompleteRequest(Irp, IO_NO_INCREMENT);
 
 	return STATUS_SUCCESS;
